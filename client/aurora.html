@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aurora Playground</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: radial-gradient(circle at center, #090b1a 0%, #02040a 65%, #000000 100%);
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        color: #e6f7ff;
+      }
+
+      canvas {
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        z-index: -2;
+        filter: blur(10px) saturate(140%);
+      }
+
+      .glass-card {
+        width: min(90vw, 540px);
+        padding: 2.5rem;
+        border-radius: 24px;
+        background: rgba(10, 16, 40, 0.45);
+        border: 1px solid rgba(120, 180, 255, 0.25);
+        backdrop-filter: blur(18px);
+        box-shadow: 0 25px 55px rgba(0, 0, 0, 0.4);
+        display: grid;
+        gap: 1.5rem;
+        text-align: center;
+      }
+
+      h1 {
+        font-size: clamp(2rem, 4vw, 2.75rem);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      p.description {
+        line-height: 1.7;
+        color: rgba(230, 247, 255, 0.8);
+        font-size: 1rem;
+      }
+
+      .controls {
+        display: grid;
+        gap: 1rem;
+      }
+
+      label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 0.95rem;
+        letter-spacing: 0.05em;
+      }
+
+      input[type="range"] {
+        width: 60%;
+        accent-color: #73f3ff;
+      }
+
+      footer {
+        font-size: 0.8rem;
+        color: rgba(230, 247, 255, 0.55);
+      }
+
+      a {
+        color: #73f3ff;
+        text-decoration: none;
+      }
+
+      a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="aurora"></canvas>
+    <main class="glass-card">
+      <section>
+        <h1>Aurora Playground</h1>
+        <p class="description">
+          Drag your cursor to paint the sky with flowing ribbons of light.
+          Use the controls below to tune the aurora's intensity and motion.
+        </p>
+      </section>
+      <section class="controls">
+        <label>
+          Intensity
+          <input type="range" id="intensity" min="1" max="6" value="3" step="0.5" />
+        </label>
+        <label>
+          Flow Speed
+          <input type="range" id="speed" min="0.2" max="3" value="1" step="0.1" />
+        </label>
+      </section>
+      <footer>
+        Crafted with CSS gradients, canvas magic, and a touch of cosmic wonder.
+        Learn about auroras on
+        <a href="https://www.swpc.noaa.gov/phenomena/aurora" target="_blank" rel="noopener"
+          >NOAA SWPC</a
+        >.
+      </footer>
+    </main>
+
+    <script>
+      const canvas = document.getElementById("aurora");
+      const ctx = canvas.getContext("2d");
+      const intensitySlider = document.getElementById("intensity");
+      const speedSlider = document.getElementById("speed");
+
+      let width = (canvas.width = window.innerWidth);
+      let height = (canvas.height = window.innerHeight);
+
+      const ribbons = new Array(5).fill().map(() => createRibbon());
+      let pointer = { x: width / 2, y: height / 3 };
+
+      function createRibbon() {
+        return {
+          points: new Array(32).fill().map(() => ({
+            x: Math.random() * width,
+            y: Math.random() * height,
+          })),
+          hue: Math.random() * 360,
+          speed: 0.008 + Math.random() * 0.015,
+        };
+      }
+
+      function resize() {
+        width = canvas.width = window.innerWidth;
+        height = canvas.height = window.innerHeight;
+      }
+
+      function updateRibbon(ribbon, deltaTime, intensity, flowSpeed) {
+        const points = ribbon.points;
+        const freq = ribbon.speed * flowSpeed;
+
+        for (let i = points.length - 1; i > 0; i--) {
+          points[i].x += (points[i - 1].x - points[i].x) * 0.12;
+          points[i].y += (points[i - 1].y - points[i].y) * 0.12;
+        }
+
+        const head = points[0];
+        head.x += (pointer.x - head.x) * freq * 20 * deltaTime;
+        head.y += (pointer.y - head.y) * freq * 20 * deltaTime;
+
+        ribbon.hue = (ribbon.hue + freq * 120 * deltaTime) % 360;
+
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length - 2; i++) {
+          const xc = (points[i].x + points[i + 1].x) / 2;
+          const yc = (points[i].y + points[i + 1].y) / 2;
+          ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+        }
+
+        const lastPoint = points[points.length - 1];
+        ctx.quadraticCurveTo(
+          points[points.length - 2].x,
+          points[points.length - 2].y,
+          lastPoint.x,
+          lastPoint.y
+        );
+
+        const gradient = ctx.createLinearGradient(0, 0, width, height);
+        gradient.addColorStop(0, `hsla(${ribbon.hue}, 85%, 70%, ${0.18 * intensity})`);
+        gradient.addColorStop(0.5, `hsla(${(ribbon.hue + 60) % 360}, 95%, 75%, ${0.08 * intensity})`);
+        gradient.addColorStop(1, `hsla(${(ribbon.hue + 120) % 360}, 90%, 80%, 0)`);
+
+        ctx.strokeStyle = gradient;
+        ctx.lineWidth = intensity * 3;
+        ctx.shadowBlur = intensity * 12;
+        ctx.shadowColor = `hsla(${ribbon.hue}, 95%, 75%, 0.7)`;
+        ctx.stroke();
+      }
+
+      let lastTime = performance.now();
+
+      function animate(timestamp) {
+        const deltaTime = (timestamp - lastTime) / 1000;
+        lastTime = timestamp;
+
+        ctx.clearRect(0, 0, width, height);
+        ctx.globalCompositeOperation = "lighter";
+
+        const intensity = parseFloat(intensitySlider.value);
+        const flowSpeed = parseFloat(speedSlider.value);
+
+        ribbons.forEach((ribbon) => updateRibbon(ribbon, deltaTime, intensity, flowSpeed));
+
+        requestAnimationFrame(animate);
+      }
+
+      window.addEventListener("resize", resize);
+
+      window.addEventListener("pointermove", (event) => {
+        pointer = { x: event.clientX, y: event.clientY };
+      });
+
+      window.addEventListener("pointerdown", (event) => {
+        pointer = { x: event.clientX, y: event.clientY };
+        ribbons.push(createRibbon());
+        if (ribbons.length > 7) ribbons.shift();
+      });
+
+      resize();
+      animate(lastTime);
+    </script>
+  </body>
+</html>
